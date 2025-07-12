@@ -1,17 +1,34 @@
 <!-- Project/Task Page Header -->
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-4 pb-3 mb-4 border-bottom">
+    <!-- Left Side Title -->
     <div>
         <h1 class="h2">Task Management</h1>
         <p class="mb-0 text-muted">Manage Tasks and their associated projects</p>
     </div>
+
+    <!-- Right Side Buttons -->
     <div class="btn-toolbar mb-2 mb-md-0">
+        <!-- New Task Button -->
         <div class="btn-group me-2">
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newTaskModal">
                 <i class="fas fa-plus me-1"></i> New Task
             </button>
         </div>
+
+        <!-- Export Dropdown Button -->
+        <div class="btn-group">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-download me-1"></i> Export
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown">
+                <li><a class="dropdown-item" href="#" onclick="invoiceManager.handleExport('csv')"><i class="fas fa-file-csv me-2"></i> CSV</a></li>
+                <li><a class="dropdown-item" href="#" onclick="invoiceManager.handleExport('excel')"><i class="fas fa-file-excel me-2"></i> Excel</a></li>
+                <li><a class="dropdown-item" href="#" onclick="invoiceManager.handleExport('pdf')"><i class="fas fa-file-pdf me-2"></i> PDF</a></li>
+            </ul>
+        </div>
     </div>
 </div>
+
 
 <!-- Project Tabs -->
 <ul class="nav nav-tabs mb-4" id="projectTabs" role="tablist">
@@ -460,6 +477,76 @@
 </style>
 
 <script>
+
+// Make sure invoiceManager is properly defined as an object
+const invoiceManager = {
+    filters: {}, // Make sure this is defined with your actual filters
+    
+    handleExport: function(exportType) {
+        Swal.fire({
+            title: 'Preparing Export',
+            html: 'Please wait while we prepare your export...',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+                
+                // Prepare the data to send
+                const exportData = {
+                    exportType: exportType,
+                    filters: this.filters
+                };
+                
+                fetch('ajax_helpers/export_taks.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(exportData)
+                })
+                .then(response => {
+                    if (exportType === 'pdf') {
+                        // For PDF, we return HTML that will trigger print dialog
+                        return response.text().then(html => {
+                            // Open a new window with the HTML
+                            const printWindow = window.open('', '_blank');
+                            printWindow.document.write(html);
+                            printWindow.document.close();
+                            Swal.close();
+                        });
+                    } else {
+                        // For CSV and Excel, handle as blob
+                        return response.blob().then(blob => {
+                            // Create a download link
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            
+                            // Set appropriate file extension
+                            const extension = exportType === 'excel' ? 'xls' : exportType; // Fixed typo from 'excel' to 'excel'
+                            a.download = `tasks_export.${extension}`;
+                            
+                            document.body.appendChild(a);
+                            a.click();
+                            
+                            // Clean up
+                            window.URL.revokeObjectURL(url);
+                            a.remove();
+                            Swal.close();
+                        });
+                    }
+                })
+                .catch(error => {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Export Failed',
+                        text: error.message || 'An error occurred during export',
+                        confirmButtonColor: '#3085d6',
+                    });
+                });
+            }
+        });
+    }
+};
     // Main Initialization Function
     document.addEventListener('DOMContentLoaded', function() {
         // Load initial data
@@ -866,6 +953,8 @@
             showError('Error creating task: ' + error.message);
         }
     }
+
+    
 
     // Delete Task
     async function deleteTask(taskId) {

@@ -41,7 +41,7 @@ try {
                 u.name,
                 u.status,
                 u.last_active,
-                u.avatar,
+                u.picture,
                 r.name as role_name
             FROM users u
             LEFT JOIN roles r ON u.role_id = r.id";
